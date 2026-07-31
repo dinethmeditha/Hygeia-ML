@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HYGEIA GLOVE – AI Health Monitor</title>
+  <meta name="description" content="Real-time AI-powered patient health monitoring dashboard for the HYGEIA Smart Glove" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+  <style>
+    /* ═══════════ RESET & BASE ═══════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080c14;
+      --bg2:       #0d1220;
+      --card:      rgba(255,255,255,0.04);
+      --border:    rgba(0,212,255,0.15);
+      --cyan:      #00d4ff;
+      --green:     #00ff88;
+      --yellow:    #ffcc00;
+      --red:       #ff4444;
+      --text:      #e0e8f8;
+      --muted:     #6b7fa3;
+      --r:         16px;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background grid */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    /* ═══════════ LAYOUT ═══════════ */
+    .app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 20px 40px; }
+
+    /* ═══════════ HEADER ═══════════ */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px 0 18px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .logo-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, var(--cyan), #0066ff);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 0 20px rgba(0,212,255,.4);
+    }
+    .logo-text { line-height: 1.1; }
+    .logo-text h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.4rem; font-weight: 900;
+      background: linear-gradient(90deg, var(--cyan), #fff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: 2px;
+    }
+    .logo-text p { font-size: .7rem; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+    .header-right { display: flex; align-items: center; gap: 16px; }
+
+    .live-badge {
+      display: flex; align-items: center; gap: 7px;
+      background: rgba(0,255,136,.1); border: 1px solid rgba(0,255,136,.3);
+      border-radius: 20px; padding: 5px 14px;
+      font-size: .75rem; font-weight: 600; color: var(--green);
+      letter-spacing: .5px;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .4; transform: scale(.7); }
+    }
+
+    .source-badge {
+      font-size: .72rem; padding: 4px 12px; border-radius: 20px; font-weight: 600;
+      letter-spacing: .5px;
+    }
+    .source-badge.demo  { background: rgba(255,204,0,.1); border:1px solid rgba(255,204,0,.3); color:var(--yellow); }
+    .source-badge.esp32 { background: rgba(0,212,255,.1); border:1px solid rgba(0,212,255,.3); color:var(--cyan);   }
+
+    #clock { font-family: 'Orbitron', sans-serif; font-size: .9rem; color: var(--cyan); letter-spacing: 2px; }
+
+    /* ═══════════ PATIENT BAR ═══════════ */
+    .patient-bar {
+      display: flex; align-items: center; gap: 24px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 14px 22px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+    .patient-bar .label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+    .patient-bar .value { font-size: .9rem; font-weight: 600; }
+    .divider { width: 1px; height: 30px; background: var(--border); }
+
+    /* ═══════════ VITAL CARDS GRID ═══════════ */
+    .vitals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .vital-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 26px 22px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .vital-card:hover { transform: translateY(-3px); }
+    .vital-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--accent-color, var(--cyan));
+      border-radius: var(--r) var(--r) 0 0;
+    }
+    .vital-card.temp   { --accent-color: #ff7c5c; }
+    .vital-card.spo2   { --accent-color: var(--cyan); }
+    .vital-card.pulse  { --accent-color: #ff4d8a; }
+    .vital-card.status { --accent-color: var(--green); }
+
+    .vital-icon { font-size: 1.6rem; margin-bottom: 10px; }
+    .vital-label {
+      font-size: .68rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+    }
+    .vital-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.6rem; font-weight: 900; line-height: 1;
+      color: #fff;
+      transition: color .4s;
+    }
+    .vital-unit { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+    .vital-range { font-size: .65rem; color: var(--muted); margin-top: 10px; }
+
+    /* Animated pulse ring for heart rate */
+    .pulse-ring {
+      position: absolute; top: 20px; right: 20px;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,77,138,.4);
+      animation: ring-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes ring-pulse {
+      0%   { transform: scale(.9); opacity: 1; }
+      70%  { transform: scale(1.5); opacity: 0; }
+      100% { transform: scale(.9); opacity: 0; }
+    }
+
+    /* Status card specifics */
+    .status-name {
+      font-size: 1.5rem; font-weight: 800; margin-top: 6px;
+      transition: color .4s;
+    }
+    .confidence-bar { margin-top: 12px; }
+    .conf-label { font-size: .65rem; color: var(--muted); margin-bottom: 4px; }
+    .conf-track { height: 5px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; }
+    .conf-fill  { height: 100%; border-radius: 3px; background: var(--green); transition: width .5s ease; }
+    .conf-pct   { font-size: .7rem; color: var(--muted); margin-top: 3px; text-align: right; }
+
+    /* ═══════════ CHART SECTION ═══════════ */
+    .charts-section {
+      margin-top: 28px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 24px;
+    }
+    .section-title {
+      font-size: .8rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px,1fr)); gap: 20px; }
+    .chart-box {
+      background: rgba(0,0,0,.3); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px;
+    }
+    .chart-title { font-size: .7rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+    .chart-box canvas { max-height: 180px; }
+
+    /* ═══════════ TABLE ═══════════ */
+    .table-section {
+      margin-top: 22px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 24px;
+    }
+    .table-wrap { overflow-x: auto; margin-top: 16px; }
+
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: .8rem;
+    }
+    thead th {
+      text-align: left; padding: 10px 14px;
+      font-size: .65rem; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr {
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      transition: background .15s;
+    }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+    tbody td { padding: 11px 14px; }
+    .status-pill {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 20px; font-size: .68rem; font-weight: 700;
+      letter-spacing: .5px;
+    }
+    .pill-normal   { background: rgba(0,255,136,.12);  color: var(--green);  border: 1px solid rgba(0,255,136,.3); }
+    .pill-warning  { background: rgba(255,204,0,.12);  color: var(--yellow); border: 1px solid rgba(255,204,0,.3); }
+    .pill-critical { background: rgba(255,68,68,.12);  color: var(--red);    border: 1px solid rgba(255,68,68,.3); }
+
+    /* ═══════════ FOOTER ═══════════ */
+    footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 30px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: .7rem; color: var(--muted);
+      flex-wrap: wrap; gap: 10px;
+    }
+    #last-update { color: var(--cyan); }
+
+    /* ═══════════ SCROLLBAR ═══════════ */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,212,255,.3); border-radius: 3px; }
+
+    /* ═══════════ RESPONSIVE ═══════════ */
+    @media (max-width: 600px) {
+      .vital-value { font-size: 2rem; }
+      .chart-grid  { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🧤</div>
+      <div class="logo-text">
+        <h1>HYGEIA GLOVE</h1>
+        <p>AI Health Monitoring System</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+      <span id="source-badge" class="source-badge demo">DEMO</span>
+      <div id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- ── PATIENT BAR ── -->
+  <div class="patient-bar">
+    <div>
+      <div class="label">Patient</div>
+      <div class="value">Demo Patient</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="label">Session Start</div>
+      <div class="value" id="session-start">--:--</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="label">Duration</div>
+      <div class="value" id="session-duration">0 min</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="label">Readings</div>
+      <div class="value" id="reading-count">0</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="label">AI Classifier</div>
+      <div class="value" id="classifier-type">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ── VITAL CARDS ── -->
+  <div class="vitals-grid">
+
+    <!-- Temperature -->
+    <div class="vital-card temp" id="card-temp">
+      <div class="vital-icon">🌡️</div>
+      <div class="vital-label">Body Temperature</div>
+      <div class="vital-value" id="val-temp">--.-</div>
+      <div class="vital-unit">°C</div>
+      <div class="vital-range">Normal: 36.1 – 37.2°C</div>
+    </div>
+
+    <!-- SpO2 -->
+    <div class="vital-card spo2" id="card-spo2">
+      <div class="vital-icon">💧</div>
+      <div class="vital-label">Blood Oxygen (SpO₂)</div>
+      <div class="vital-value" id="val-spo2">--</div>
+      <div class="vital-unit">%</div>
+      <div class="vital-range">Normal: ≥ 95%</div>
+    </div>
+
+    <!-- Heart Rate -->
+    <div class="vital-card pulse" id="card-pulse">
+      <div class="pulse-ring"></div>
+      <div class="vital-icon">💓</div>
+      <div class="vital-label">Heart Rate</div>
+      <div class="vital-value" id="val-pulse">--</div>
+      <div class="vital-unit">BPM</div>
+      <div class="vital-range">Normal: 60 – 100 BPM</div>
+    </div>
+
+    <!-- Health Status -->
+    <div class="vital-card status" id="card-status">
+      <div class="vital-icon">🩺</div>
+      <div class="vital-label">AI Health Status</div>
+      <div class="status-name" id="val-status">--</div>
+      <div class="confidence-bar">
+        <div class="conf-label">AI Confidence</div>
+        <div class="conf-track"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
+        <div class="conf-pct" id="conf-pct">--%</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── CHARTS ── -->
+  <div class="charts-section">
+    <div class="section-title">📈 30-Minute Trend</div>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <div class="chart-title">🌡️ Temperature (°C)</div>
+        <canvas id="chartTemp"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">💧 SpO₂ (%)</div>
+        <canvas id="chartSpo2"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">💓 Heart Rate (BPM)</div>
+        <canvas id="chartPulse"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TABLE ── -->
+  <div class="table-section">
+    <div class="section-title">📋 Recent Readings</div>
+    <div class="table-wrap">
+      <table id="readings-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Temp (°C)</th>
+            <th>SpO₂ (%)</th>
+            <th>Pulse (BPM)</th>
+            <th>Status</th>
+            <th>Confidence</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <div>🧤 HYGEIA GLOVE · KDU Sem 4 Project · AI Health Monitoring</div>
+    <div>Last updated: <span id="last-update">--</span></div>
+  </footer>
+
+</div><!-- .app -->
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CHART SETUP
+// ════════════════════════════════════════════════════════════════
+const CHART_OPTS = (label, color, minY, maxY, unit) => ({
+  type: 'line',
+  data: { datasets: [{ label, data: [], borderColor: color, backgroundColor: color + '15',
+    borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: true, tension: 0.4 }] },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    animation: false,
+    scales: {
+      x: {
+        type: 'time',
+        time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
+        grid: { color: 'rgba(255,255,255,.06)' },
+        ticks: { color: '#6b7fa3', maxTicksLimit: 6, font: { size: 10 } }
+      },
+      y: {
+        min: minY, max: maxY,
+        grid: { color: 'rgba(255,255,255,.06)' },
+        ticks: { color: '#6b7fa3', font: { size: 10 },
+          callback: v => v + unit }
+      }
+    },
+    plugins: { legend: { display: false }, tooltip: {
+      backgroundColor: '#0d1220', borderColor: color, borderWidth: 1,
+      titleColor: '#e0e8f8', bodyColor: '#e0e8f8',
+      callbacks: { label: ctx => ` ${ctx.parsed.y}${unit}` }
+    }}
+  }
+});
+
+const ctxT = document.getElementById('chartTemp').getContext('2d');
+const ctxS = document.getElementById('chartSpo2').getContext('2d');
+const ctxP = document.getElementById('chartPulse').getContext('2d');
+
+const chartTemp  = new Chart(ctxT, CHART_OPTS('Temp',  '#ff7c5c', 34,  41,  '°C'));
+const chartSpo2  = new Chart(ctxS, CHART_OPTS('SpO₂',  '#00d4ff', 85, 101,  '%' ));
+const chartPulse = new Chart(ctxP, CHART_OPTS('Pulse', '#ff4d8a', 40, 160, ' BPM'));
+
+// ════════════════════════════════════════════════════════════════
+//  CLOCK
+// ════════════════════════════════════════════════════════════════
+const clockEl = document.getElementById('clock');
+setInterval(() => {
+  clockEl.textContent = new Date().toLocaleTimeString('en-GB');
+}, 1000);
+
+// ════════════════════════════════════════════════════════════════
+//  UTILITY
+// ════════════════════════════════════════════════════════════════
+function pillClass(status) {
+  if (!status) return '';
+  const s = status.toLowerCase();
+  if (s === 'normal')   return 'pill-normal';
+  if (s === 'warning')  return 'pill-warning';
+  if (s === 'critical') return 'pill-critical';
+  return '';
+}
+
+function statusColor(status) {
+  if (!status) return '#e0e8f8';
+  const s = status.toLowerCase();
+  if (s === 'normal')   return '#00ff88';
+  if (s === 'warning')  return '#ffcc00';
+  if (s === 'critical') return '#ff4444';
+  return '#e0e8f8';
+}
+
+function fmtTime(iso) {
+  try { return new Date(iso).toLocaleTimeString('en-GB'); }
+  catch { return '--'; }
+}
+
+let sessionStart = null;
+let sessionInterval = null;
+
+function startSession(ts) {
+  sessionStart = new Date(ts);
+  document.getElementById('session-start').textContent = sessionStart.toLocaleTimeString('en-GB');
+  if (sessionInterval) clearInterval(sessionInterval);
+  sessionInterval = setInterval(() => {
+    const diff = Math.round((Date.now() - sessionStart) / 60000);
+    document.getElementById('session-duration').textContent = diff + ' min';
+  }, 10000);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  UPDATE UI WITH DATA
+// ════════════════════════════════════════════════════════════════
+let allData = [];
+
+function updateUI(data) {
+  if (!data || data.length === 0) return;
+  allData = data;
+
+  // Session info
+  if (!sessionStart) startSession(data[0].timestamp);
+  const diff = Math.round((Date.now() - sessionStart) / 60000);
+  document.getElementById('session-duration').textContent = diff + ' min';
+  document.getElementById('reading-count').textContent = data.length;
+
+  // Latest reading
+  const latest = data[data.length - 1];
+
+  // Vital values
+  document.getElementById('val-temp').textContent  = latest.temp   ?? '--';
+  document.getElementById('val-spo2').textContent  = latest.spo2   ?? '--';
+  document.getElementById('val-pulse').textContent = latest.pulse  ?? '--';
+
+  const statusEl = document.getElementById('val-status');
+  statusEl.textContent = latest.status ?? '--';
+  statusEl.style.color = statusColor(latest.status);
+
+  const conf = Math.round((latest.confidence ?? 0) * 100);
+  document.getElementById('conf-fill').style.width = conf + '%';
+  document.getElementById('conf-pct').textContent  = conf + '%';
+  document.getElementById('conf-fill').style.background = statusColor(latest.status);
+
+  // Source badge
+  const badge = document.getElementById('source-badge');
+  if (latest.source === 'esp32') {
+    badge.textContent = 'ESP32 LIVE';
+    badge.className = 'source-badge esp32';
+  } else {
+    badge.textContent = 'DEMO';
+    badge.className = 'source-badge demo';
+  }
+
+  // Charts – show only last 360 points (30 min)
+  const slice = data.slice(-360);
+  const makePt = (r, key) => ({ x: new Date(r.timestamp), y: r[key] });
+
+  chartTemp.data.datasets[0].data  = slice.map(r => makePt(r, 'temp'));
+  chartSpo2.data.datasets[0].data  = slice.map(r => makePt(r, 'spo2'));
+  chartPulse.data.datasets[0].data = slice.map(r => makePt(r, 'pulse'));
+
+  chartTemp.update('none');
+  chartSpo2.update('none');
+  chartPulse.update('none');
+
+  // Table – last 15 rows, newest first
+  const tbody = document.getElementById('table-body');
+  const rows = [...data].reverse().slice(0, 15);
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${fmtTime(r.timestamp)}</td>
+      <td>${r.temp}</td>
+      <td>${r.spo2}</td>
+      <td>${r.pulse}</td>
+      <td><span class="status-pill ${pillClass(r.status)}">${r.status}</span></td>
+      <td>${Math.round((r.confidence ?? 0) * 100)}%</td>
+      <td style="color:var(--muted);font-size:.65rem;letter-spacing:.5px">${(r.source ?? '').toUpperCase()}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('last-update').textContent = new Date().toLocaleTimeString('en-GB');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  FETCH STATUS & DATA
+// ════════════════════════════════════════════════════════════════
+async function fetchStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const s = await r.json();
+    document.getElementById('classifier-type').textContent = s.classifier ?? 'Unknown';
+  } catch {}
+}
+
+async function fetchData() {
+  try {
+    const r = await fetch('/api/data');
+    const d = await r.json();
+    updateUI(d);
+  } catch (e) {
+    console.error('Fetch error:', e);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════════
+(async function init() {
+  await fetchStatus();
+  await fetchData();
+
+  // Refresh data every 5 s
+  setInterval(fetchData, 5000);
+  // Refresh server status every 15 s
+  setInterval(fetchStatus, 15000);
+  // Session duration update every 10 s already handled above
+})();
+</script>
+</body>
+</html>
