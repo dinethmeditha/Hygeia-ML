@@ -1,4 +1,4 @@
-HYGEIA GLOVE - AI MEDICAL SYSTEM
+HYGEIA AI - Patient Health Monitoring System
 ============================================================
 
 CLASSIFICATION REPORT:

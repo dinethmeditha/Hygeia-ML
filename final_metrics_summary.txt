@@ -1,4 +1,4 @@
-HYGEIA GLOVE - FINAL RESULTS
+HYGEIA AI - Patient Health Monitoring System - Final Results
 ============================================================
 
 Overall Accuracy: 100.00%
