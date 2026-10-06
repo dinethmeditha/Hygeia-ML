@@ -91,6 +91,7 @@ The system relies on an **ESP32 Dev Module** acting as the main microcontroller.
 | MLX90614 GND | GND | |
 | Status LED | GPIO 2 | Built-in on most boards |
 
+<p><strong>Note:</strong> The MAX30102 and MLX90614 share the same I²C bus using GPIO 21 (SDA) and GPIO 22 (SCL), allowing both sensors to communicate with the ESP32 through the same I²C connection.</p>
 ---
 
 ## 5. 🧠 Machine Learning Methodology
