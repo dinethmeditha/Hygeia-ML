@@ -95,11 +95,19 @@ X_scaled = scaler.fit_transform(X)
 joblib.dump(scaler, SCALER_OUT)
 print(f"\n✅ Scaler saved → {SCALER_OUT}")
 
-# Reshape to (N, 1, 6) for Conv1D/LSTM
-X_seq = X_scaled.reshape(X_scaled.shape[0], 1, X_scaled.shape[1])
+# Create sequences of SEQ_LEN for Conv1D/LSTM
+SEQ_LEN = 5
+X_seq_list = []
+y_seq_list = []
+for i in range(len(X_scaled) - SEQ_LEN + 1):
+    X_seq_list.append(X_scaled[i : i + SEQ_LEN])
+    y_seq_list.append(y[i + SEQ_LEN - 1])
+
+X_seq = np.array(X_seq_list)
+y_seq = np.array(y_seq_list)
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X_seq, y, test_size=0.2, random_state=42, stratify=y
+    X_seq, y_seq, test_size=0.2, random_state=42, stratify=y_seq
 )
 print(f"   Train: {X_train.shape[0]} | Test: {X_test.shape[0]}")
 
@@ -164,7 +172,7 @@ print("═" * 60)
 print(f"Overall Accuracy : {accuracy*100:.2f}%")
 print(f"Mean Confidence  : {confidence.mean():.4f}")
 report = classification_report(
-    y_test, y_pred, target_names=list(STATUS_NAMES.values()), zero_division=0
+    y_test, y_pred, labels=[0, 1, 2], target_names=list(STATUS_NAMES.values()), zero_division=0
 )
 print("\n" + report)
 

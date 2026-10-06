@@ -5,15 +5,14 @@ CLASSIFICATION REPORT:
 
               precision    recall  f1-score   support
 
-      Normal     0.9322    0.9483    0.9402        58
-     Warning     0.8333    0.7895    0.8108        19
-    Critical     0.0000    0.0000    0.0000         0
+      Normal       1.00      1.00      1.00        38
+     Warning       1.00      1.00      1.00         1
+    Critical       0.00      0.00      0.00         0
 
-    accuracy                         0.9091        77
-   macro avg     0.5885    0.5792    0.5837        77
-weighted avg     0.9078    0.9091    0.9083        77
+   micro avg       1.00      1.00      1.00        39
+   macro avg       0.67      0.67      0.67        39
+weighted avg       1.00      1.00      1.00        39
 
-
-Overall Accuracy: 90.91%
-Mean Prediction Confidence: 0.9351
-Std Prediction Confidence: 0.1056
+Overall Accuracy: 100.00%
+Mean Confidence: 1.0000
+Confidence Std: 0.0001

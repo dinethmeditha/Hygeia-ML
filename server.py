@@ -51,6 +51,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ── Shared state ───────────────────────────────────────────────────────────────
 # 30 minutes @ 5-second intervals = 360 readings max
 readings_buffer: deque = deque(maxlen=360)
+recent_features: deque = deque(maxlen=5) # SEQ_LEN = 5
 buffer_lock = threading.Lock()
 sample_running = False
 sample_thread  = None
@@ -125,6 +126,7 @@ def rule_based_classify(temp: float, spo2: float, pulse: float):
 
 def classify(temp: float, spo2: float, pulse: float):
     """Returns (status_idx, confidence, status_name)."""
+    global recent_features
     if model is not None and scaler is not None:
         try:
             feats = np.array([[
@@ -133,8 +135,17 @@ def classify(temp: float, spo2: float, pulse: float):
                 pulse / (spo2  + 1e-6),
                 spo2 * 0.5 - abs(temp - 37.0) * 10 - abs(pulse - 75.0) * 0.1
             ]])
-            scaled = scaler.transform(feats).reshape(1, 1, 6)
-            probs  = model.predict(scaled, verbose=0)[0]
+            scaled_feat = scaler.transform(feats)[0] # shape (6,)
+            
+            with buffer_lock:
+                if len(recent_features) == 0:
+                    for _ in range(5):
+                        recent_features.append(scaled_feat)
+                else:
+                    recent_features.append(scaled_feat)
+                scaled_seq = np.array(recent_features).reshape(1, 5, 6)
+                
+            probs  = model.predict(scaled_seq, verbose=0)[0]
             idx    = int(np.argmax(probs))
             return idx, float(np.max(probs)), STATUS_NAMES[idx]
         except Exception as e:
@@ -312,8 +323,10 @@ def stop_sample():
 
 @app.route("/api/clear", methods=["POST"])
 def clear_data():
+    global recent_features
     with buffer_lock:
         readings_buffer.clear()
+        recent_features.clear()
     return jsonify({"status": "cleared"})
 
 # ═══════════════════════════════════════════════════════════════════════════════
