@@ -113,7 +113,7 @@
 
     #clock { font-family: 'Orbitron', sans-serif; font-size: .9rem; color: var(--cyan); letter-spacing: 2px; }
 
-    /* ═══════════ PATIENT BAR ═══════════ */
+    /* ═══════════ PATIENT BAR & SIM CONTROLS ═══════════ */
     .patient-bar {
       display: flex; align-items: center; gap: 24px;
       background: var(--card); border: 1px solid var(--border);
@@ -121,8 +121,21 @@
       margin-top: 18px;
       flex-wrap: wrap;
     }
-    .patient-bar .label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
-    .patient-bar .value { font-size: .9rem; font-weight: 600; }
+    .sim-controls {
+      display: flex; align-items: center; gap: 12px;
+      background: rgba(0,212,255,0.05); border: 1px solid var(--cyan);
+      border-radius: var(--r); padding: 14px 22px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+    .sim-label { font-size: .8rem; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 1px; margin-right: 10px; }
+    .sim-btn {
+      background: transparent; border: 1px solid var(--muted); color: var(--text);
+      padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: .8rem;
+      cursor: pointer; transition: all .2s;
+    }
+    .sim-btn:hover { background: rgba(255,255,255,0.1); }
+    .sim-btn.active { background: var(--cyan); border-color: var(--cyan); color: #000; box-shadow: 0 0 12px rgba(0,212,255,0.4); }
     .divider { width: 1px; height: 30px; background: var(--border); }
 
     /* ═══════════ VITAL CARDS GRID ═══════════ */
@@ -161,9 +174,10 @@
     }
     .vital-value {
       font-family: 'Orbitron', sans-serif;
-      font-size: 2.6rem; font-weight: 900; line-height: 1;
+      font-size: 3.8rem; font-weight: 900; line-height: 1;
       color: #fff;
       transition: color .4s;
+      text-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     .vital-unit { font-size: .75rem; color: var(--muted); margin-top: 4px; }
     .vital-range { font-size: .65rem; color: var(--muted); margin-top: 10px; }
@@ -184,8 +198,9 @@
 
     /* Status card specifics */
     .status-name {
-      font-size: 1.5rem; font-weight: 800; margin-top: 6px;
+      font-size: 2.4rem; font-weight: 800; margin-top: 10px; margin-bottom: 12px;
       transition: color .4s;
+      text-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     .confidence-bar { margin-top: 12px; }
     .conf-label { font-size: .65rem; color: var(--muted); margin-bottom: 4px; }
@@ -319,6 +334,15 @@
       <div class="label">AI Classifier</div>
       <div class="value" id="classifier-type">Loading…</div>
     </div>
+  </div>
+
+  <!-- ── SIMULATION CONTROLS ── -->
+  <div class="sim-controls" id="sim-controls" style="display: none;">
+    <div class="sim-label">Simulation Controller</div>
+    <button class="sim-btn active" onclick="setSimMode('normal')" id="btn-normal">🟢 Normal Patient</button>
+    <button class="sim-btn" onclick="setSimMode('critical_spo2')" id="btn-critical_spo2">🔵 Drop SpO₂</button>
+    <button class="sim-btn" onclick="setSimMode('critical_temp')" id="btn-critical_temp">🔥 Spike Temp</button>
+    <button class="sim-btn" onclick="setSimMode('critical_pulse')" id="btn-critical_pulse">💓 High Pulse</button>
   </div>
 
   <!-- ── VITAL CARDS ── -->
@@ -585,6 +609,15 @@ async function fetchStatus() {
     const r = await fetch('/api/status');
     const s = await r.json();
     document.getElementById('classifier-type').textContent = s.classifier ?? 'Unknown';
+    
+    // Show simulation controls only if demo mode is running
+    const simControls = document.getElementById('sim-controls');
+    if (s.sample_running && !s.esp32_connected) {
+      simControls.style.display = 'flex';
+      updateSimButtons(s.simulation_mode || 'normal');
+    } else {
+      simControls.style.display = 'none';
+    }
   } catch {}
 }
 
@@ -596,6 +629,29 @@ async function fetchData() {
   } catch (e) {
     console.error('Fetch error:', e);
   }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  SIMULATION MODE CONTROLS
+// ════════════════════════════════════════════════════════════════
+async function setSimMode(mode) {
+  try {
+    await fetch('/api/simulation/mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
+    });
+    // Immediately fetch status to update buttons
+    fetchStatus();
+  } catch (e) {
+    console.error('Failed to set sim mode:', e);
+  }
+}
+
+function updateSimButtons(activeMode) {
+  document.querySelectorAll('.sim-btn').forEach(btn => btn.classList.remove('active'));
+  const btn = document.getElementById('btn-' + activeMode);
+  if (btn) btn.classList.add('active');
 }
 
 // ════════════════════════════════════════════════════════════════

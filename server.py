@@ -57,6 +57,7 @@ sample_running = False
 sample_thread  = None
 esp32_connected = False           # flipped to True on first real POST
 last_esp32_time = None
+simulation_mode = "normal"
 
 model  = None
 scaler = None
@@ -174,20 +175,46 @@ def make_reading(temp, spo2, pulse, source="esp32"):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _sample_loop():
-    global sample_running
+    global sample_running, simulation_mode
     temp  = random.uniform(36.5, 37.2)
     spo2  = random.uniform(96.0, 99.0)
     pulse = random.uniform(68.0, 88.0)
+    
+    csv_file = os.path.join(BASE_DIR, "data", "simulated_session.csv")
+    if not os.path.exists(csv_file):
+        with open(csv_file, "w") as f:
+            f.write("Timestamp,Temp,SpO2,Pulse,Mode\n")
 
     while sample_running:
-        # Realistic physiological random walk
-        temp  = max(35.5, min(40.5, temp  + random.gauss(0, 0.05)))
-        spo2  = max(88.0, min(100.0, spo2  + random.gauss(0, 0.4)))
-        pulse = max(45.0, min(155.0, pulse + random.gauss(0, 1.8)))
+        if simulation_mode == "normal":
+            target_temp, target_spo2, target_pulse = 36.8, 98.0, 75.0
+        elif simulation_mode == "critical_spo2":
+            target_temp, target_spo2, target_pulse = 37.0, 85.0, 110.0
+        elif simulation_mode == "critical_temp":
+            target_temp, target_spo2, target_pulse = 41.5, 96.0, 125.0
+        elif simulation_mode == "critical_pulse":
+            target_temp, target_spo2, target_pulse = 36.9, 97.0, 165.0
+        else:
+            target_temp, target_spo2, target_pulse = 36.8, 98.0, 75.0
 
-        reading = make_reading(
-            round(temp, 1), round(spo2, 0), round(pulse, 0), source="sample"
-        )
+        # Move 20% towards target to simulate rapid deterioration/recovery + noise
+        temp  = temp  + (target_temp  - temp)  * 0.2 + random.gauss(0, 0.05)
+        spo2  = spo2  + (target_spo2  - spo2)  * 0.2 + random.gauss(0, 0.3)
+        pulse = pulse + (target_pulse - pulse) * 0.2 + random.gauss(0, 1.5)
+
+        temp  = max(30.0, min(45.0, temp))
+        spo2  = max(50.0, min(100.0, spo2))
+        pulse = max(30.0, min(220.0, pulse))
+
+        t, s, p = round(temp, 1), round(spo2, 0), round(pulse, 0)
+        reading = make_reading(t, s, p, source="sample")
+        
+        try:
+            with open(csv_file, "a") as f:
+                f.write(f"{reading['timestamp']},{t},{s},{p},{simulation_mode}\n")
+        except:
+            pass
+
         with buffer_lock:
             readings_buffer.append(reading)
 
@@ -298,6 +325,7 @@ def get_status():
     return jsonify({
         "esp32_connected":  alive,
         "sample_running":   sample_running,
+        "simulation_mode":  simulation_mode,
         "readings_count":   len(readings_buffer),
         "model_loaded":     model is not None,
         "classifier":       "AI (TensorFlow)" if model is not None else "Rule-based",
@@ -319,6 +347,15 @@ def stop_sample():
     global sample_running
     sample_running = False
     return jsonify({"status": "stopped"})
+
+
+@app.route("/api/simulation/mode", methods=["POST"])
+def set_sim_mode():
+    global simulation_mode
+    data = request.get_json(silent=True)
+    if data and "mode" in data:
+        simulation_mode = data["mode"]
+    return jsonify({"status": "ok", "mode": simulation_mode})
 
 
 @app.route("/api/clear", methods=["POST"])
