@@ -1,8 +1,8 @@
 """
-🧤 HYGEIA GLOVE – Model Training Script
-========================================
+HYGEIA AI - Model Training Script
+===================================
 Trains the Conv1D + BiLSTM health classification model on
-Hygeia Glove sensor data (glove_readings.csv) and saves:
+patient vital signs data (patient_vitals.csv) and saves:
   - hygeia_ai_model_final.h5   (Keras model)
   - hygeia_scaler.pkl          (fitted RobustScaler for the server)
 
@@ -26,9 +26,9 @@ import joblib
 import warnings
 warnings.filterwarnings('ignore')
 
-# ── Configuration ──────────────────────────────────────────────────────────────
+# -- Configuration -----------------------------------------------------------
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
-CSV_PATH    = os.path.join(BASE_DIR, "data", "glove_readings.csv")
+CSV_PATH    = os.path.join(BASE_DIR, "data", "patient_vitals.csv")
 MODEL_OUT   = os.path.join(BASE_DIR, "hygeia_ai_model_final.h5")
 SCALER_OUT  = os.path.join(BASE_DIR, "hygeia_scaler.pkl")
 RESULTS_DIR = os.path.join(BASE_DIR, "HYGEIA_AI_FINAL_RESULTS")
@@ -37,14 +37,14 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 sns.set_style("whitegrid")
 plt.rcParams['figure.figsize'] = (16, 8)
 
-print("✅ HYGEIA Model Training Script")
-print(f"📊 TensorFlow  : {tf.__version__}")
-print(f"🧠 GPU         : {len(tf.config.list_physical_devices('GPU')) > 0}")
+print("HYGEIA AI Model Training Script")
+print(f"TensorFlow : {tf.__version__}")
+print(f"GPU        : {len(tf.config.list_physical_devices('GPU')) > 0}")
 
-# ── 1. Load Glove-Only Data ────────────────────────────────────────────────────
-print("\n" + "═" * 60)
-print("  📁 LOADING HYGEIA GLOVE DATA")
-print("═" * 60)
+# -- 1. Load Patient Vitals Data ----------------------------------------------
+print("\n" + "=" * 60)
+print("  LOADING PATIENT VITALS DATA")
+print("=" * 60)
 
 df = pd.read_csv(CSV_PATH)
 for col in ['Temp', 'SpO2', 'Pulse']:
@@ -56,7 +56,7 @@ df = df[
     (df['Pulse'] > 0)   & (df['Pulse'] < 200)
 ].dropna().reset_index(drop=True)
 
-print(f"✅ {len(df)} valid glove readings")
+print(f"{len(df)} valid patient readings")
 print(f"   Temp  : {df['Temp'].min():.1f}°C – {df['Temp'].max():.1f}°C")
 print(f"   SpO2  : {df['SpO2'].min():.0f}% – {df['SpO2'].max():.0f}%")
 print(f"   Pulse : {df['Pulse'].min():.0f} – {df['Pulse'].max():.0f} BPM")

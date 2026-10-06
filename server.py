@@ -1,12 +1,11 @@
 """
-🧤 HYGEIA GLOVE – Flask Backend Server
-=======================================
-Receives real-time ESP32 sensor data, runs AI classification,
+HYGEIA AI – Patient Health Monitoring Server
+=============================================
+Generates AI-classified patient vital sign readings,
 serves the web dashboard, and streams 30-minute trend history.
 
-Run:  python server.py
+Run:      python server.py
 Dashboard: http://localhost:5000
-ESP32 POST: http://<your-pc-ip>:5000/api/reading
 """
 
 import os
@@ -22,13 +21,13 @@ import pandas as pd
 from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_cors import CORS
 
-# ── Optional ML imports ────────────────────────────────────────────────────────
+# -- Optional ML imports -------------------------------------------------------
 try:
     import tensorflow as tf
     TF_AVAILABLE = True
 except ImportError:
     TF_AVAILABLE = False
-    print("⚠️  TensorFlow not available – using rule-based classification")
+    print("WARNING: TensorFlow not available - using rule-based classification")
 
 try:
     import joblib
@@ -42,61 +41,58 @@ try:
 except ImportError:
     SKLEARN_AVAILABLE = False
 
-# ── Flask app ──────────────────────────────────────────────────────────────────
+# -- Flask app -----------------------------------------------------------------
 app = Flask(__name__, template_folder="templates")
 CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ── Shared state ───────────────────────────────────────────────────────────────
+# -- Shared state --------------------------------------------------------------
 # 30 minutes @ 5-second intervals = 360 readings max
 readings_buffer: deque = deque(maxlen=360)
-recent_features: deque = deque(maxlen=5) # SEQ_LEN = 5
+recent_features: deque = deque(maxlen=5)   # SEQ_LEN = 5
 buffer_lock = threading.Lock()
-sample_running = False
-sample_thread  = None
-esp32_connected = False           # flipped to True on first real POST
-last_esp32_time = None
-simulation_mode = "normal"
+sample_running   = False
+sample_thread    = None
+live_connected   = False          # True when a live external source posts data
+last_live_time   = None
+simulation_mode  = "normal"
 
 model  = None
 scaler = None
 
-STATUS_NAMES = {0: "Normal", 1: "Warning", 2: "Critical"}
+STATUS_NAMES  = {0: "Normal", 1: "Warning", 2: "Critical"}
 STATUS_COLORS = {0: "#00ff88", 1: "#ffcc00", 2: "#ff4444"}
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  MODEL & SCALER LOADING
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 
 def load_model_and_scaler():
     global model, scaler
 
-    # ── Load Keras model ───────────────────────────────────────────────────────
     model_path = os.path.join(BASE_DIR, "hygeia_ai_model_final.h5")
     if TF_AVAILABLE and os.path.exists(model_path):
         try:
             model = tf.keras.models.load_model(model_path, compile=False)
-            print(f"✅ AI model loaded  → {model_path}")
+            print(f"AI model loaded  -> {model_path}")
         except Exception as e:
-            print(f"⚠️  Model load failed: {e}")
+            print(f"Model load failed: {e}")
 
-    # ── Load fitted scaler ─────────────────────────────────────────────────────
     scaler_path = os.path.join(BASE_DIR, "hygeia_scaler.pkl")
     if JOBLIB_AVAILABLE and os.path.exists(scaler_path):
         try:
             scaler = joblib.load(scaler_path)
-            print(f"✅ Scaler loaded    → {scaler_path}")
+            print(f"Scaler loaded    -> {scaler_path}")
             return
         except Exception as e:
-            print(f"⚠️  Scaler load failed: {e}")
+            print(f"Scaler load failed: {e}")
 
-    # ── Fit scaler from training data (fallback) ───────────────────────────────
+    # Fit scaler from training CSV as fallback
     if SKLEARN_AVAILABLE:
-        csv_path = os.path.join(BASE_DIR, "data", "glove_readings.csv")
+        csv_path = os.path.join(BASE_DIR, "data", "patient_vitals.csv")
         if os.path.exists(csv_path):
-            df = pd.read_csv(csv_path)
-            df = df.dropna()
+            df = pd.read_csv(csv_path).dropna()
             df["Temp_SpO2_ratio"]  = df["Temp"]  / (df["SpO2"]  + 1e-6)
             df["Pulse_SpO2_ratio"] = df["Pulse"] / (df["SpO2"]  + 1e-6)
             df["Health_Index"]     = (
@@ -104,17 +100,15 @@ def load_model_and_scaler():
                 - abs(df["Temp"]  - 37.0) * 10
                 - abs(df["Pulse"] - 75.0) * 0.1
             )
-            features = [
-                "Temp", "SpO2", "Pulse",
-                "Temp_SpO2_ratio", "Pulse_SpO2_ratio", "Health_Index"
-            ]
+            features = ["Temp", "SpO2", "Pulse",
+                        "Temp_SpO2_ratio", "Pulse_SpO2_ratio", "Health_Index"]
             scaler = RobustScaler()
             scaler.fit(df[features].values)
-            print("✅ Scaler fitted from glove_readings.csv")
+            print("Scaler fitted from patient_vitals.csv")
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  CLASSIFICATION
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 
 def rule_based_classify(temp: float, spo2: float, pulse: float):
     """Deterministic rule-based fallback classifier."""
@@ -136,8 +130,8 @@ def classify(temp: float, spo2: float, pulse: float):
                 pulse / (spo2  + 1e-6),
                 spo2 * 0.5 - abs(temp - 37.0) * 10 - abs(pulse - 75.0) * 0.1
             ]])
-            scaled_feat = scaler.transform(feats)[0] # shape (6,)
-            
+            scaled_feat = scaler.transform(feats)[0]
+
             with buffer_lock:
                 if len(recent_features) == 0:
                     for _ in range(5):
@@ -145,9 +139,9 @@ def classify(temp: float, spo2: float, pulse: float):
                 else:
                     recent_features.append(scaled_feat)
                 scaled_seq = np.array(recent_features).reshape(1, 5, 6)
-                
-            probs  = model.predict(scaled_seq, verbose=0)[0]
-            idx    = int(np.argmax(probs))
+
+            probs = model.predict(scaled_seq, verbose=0)[0]
+            idx   = int(np.argmax(probs))
             return idx, float(np.max(probs)), STATUS_NAMES[idx]
         except Exception as e:
             print(f"Inference error: {e}")
@@ -156,7 +150,7 @@ def classify(temp: float, spo2: float, pulse: float):
     return idx, conf, STATUS_NAMES[idx]
 
 
-def make_reading(temp, spo2, pulse, source="esp32"):
+def make_reading(temp, spo2, pulse, source="demo"):
     idx, conf, name = classify(temp, spo2, pulse)
     return {
         "timestamp":  datetime.now().isoformat(),
@@ -170,17 +164,17 @@ def make_reading(temp, spo2, pulse, source="esp32"):
         "source":     source,
     }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  SAMPLE DATA GENERATOR
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+#  DEMO DATA GENERATOR (simulation loop)
+# ==============================================================================
 
 def _sample_loop():
     global sample_running, simulation_mode
     temp  = random.uniform(36.5, 37.2)
     spo2  = random.uniform(96.0, 99.0)
     pulse = random.uniform(68.0, 88.0)
-    
-    csv_file = os.path.join(BASE_DIR, "data", "simulated_session.csv")
+
+    csv_file = os.path.join(BASE_DIR, "data", "demo_session_log.csv")
     if not os.path.exists(csv_file):
         with open(csv_file, "w") as f:
             f.write("Timestamp,Temp,SpO2,Pulse,Mode\n")
@@ -197,7 +191,7 @@ def _sample_loop():
         else:
             target_temp, target_spo2, target_pulse = 36.8, 98.0, 75.0
 
-        # Move 20% towards target to simulate rapid deterioration/recovery + noise
+        # Steer 20% towards target each tick + Gaussian noise
         temp  = temp  + (target_temp  - temp)  * 0.2 + random.gauss(0, 0.05)
         spo2  = spo2  + (target_spo2  - spo2)  * 0.2 + random.gauss(0, 0.3)
         pulse = pulse + (target_pulse - pulse) * 0.2 + random.gauss(0, 1.5)
@@ -207,12 +201,12 @@ def _sample_loop():
         pulse = max(30.0, min(220.0, pulse))
 
         t, s, p = round(temp, 1), round(spo2, 0), round(pulse, 0)
-        reading = make_reading(t, s, p, source="sample")
-        
+        reading = make_reading(t, s, p, source="demo")
+
         try:
             with open(csv_file, "a") as f:
                 f.write(f"{reading['timestamp']},{t},{s},{p},{simulation_mode}\n")
-        except:
+        except Exception:
             pass
 
         with buffer_lock:
@@ -255,11 +249,11 @@ def pre_populate_history():
         for r in history:
             readings_buffer.append(r)
 
-    print(f"✅ Pre-populated {len(history)} historical readings (30 min)")
+    print(f"Pre-populated {len(history)} historical readings (30 min)")
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  ROUTES
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 
 @app.route("/")
 def index():
@@ -268,8 +262,8 @@ def index():
 
 @app.route("/api/reading", methods=["POST"])
 def receive_reading():
-    """ESP32 posts: { "temp": 36.8, "spo2": 98, "pulse": 82 }"""
-    global esp32_connected, last_esp32_time, sample_running
+    """External source posts: { "temp": 36.8, "spo2": 98, "pulse": 82 }"""
+    global live_connected, last_live_time, sample_running
 
     data = request.get_json(silent=True)
     if not data:
@@ -282,13 +276,12 @@ def receive_reading():
     except (KeyError, ValueError) as e:
         return jsonify({"error": f"Bad field: {e}"}), 400
 
-    # Mark ESP32 as connected; stop sample data if running
-    esp32_connected = True
-    last_esp32_time = datetime.now()
+    live_connected = True
+    last_live_time = datetime.now()
     if sample_running:
         sample_running = False
 
-    reading = make_reading(temp, spo2, pulse, source="esp32")
+    reading = make_reading(temp, spo2, pulse, source="live")
     with buffer_lock:
         readings_buffer.append(reading)
 
@@ -318,17 +311,17 @@ def get_current():
 @app.route("/api/status")
 def get_status():
     alive = (
-        esp32_connected
-        and last_esp32_time is not None
-        and (datetime.now() - last_esp32_time).total_seconds() < 15
+        live_connected
+        and last_live_time is not None
+        and (datetime.now() - last_live_time).total_seconds() < 15
     )
     return jsonify({
-        "esp32_connected":  alive,
-        "sample_running":   sample_running,
-        "simulation_mode":  simulation_mode,
-        "readings_count":   len(readings_buffer),
-        "model_loaded":     model is not None,
-        "classifier":       "AI (TensorFlow)" if model is not None else "Rule-based",
+        "live_connected":  alive,
+        "sample_running":  sample_running,
+        "simulation_mode": simulation_mode,
+        "readings_count":  len(readings_buffer),
+        "model_loaded":    model is not None,
+        "classifier":      "AI (TensorFlow)" if model is not None else "Rule-based",
     })
 
 
@@ -366,28 +359,28 @@ def clear_data():
         recent_features.clear()
     return jsonify({"status": "cleared"})
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 #  ENTRY POINT
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 
 if __name__ == "__main__":
     print()
-    print("╔══════════════════════════════════════════════╗")
-    print("║   🧤 HYGEIA GLOVE – AI Monitoring Server    ║")
-    print("╚══════════════════════════════════════════════╝")
+    print("=" * 50)
+    print("   HYGEIA AI - Patient Health Monitoring System")
+    print("=" * 50)
 
     load_model_and_scaler()
     pre_populate_history()
 
-    # Auto-start sample data (stops automatically when ESP32 connects)
+    # Auto-start demo data (stops when a live external source connects)
     sample_running = True
     sample_thread  = threading.Thread(target=_sample_loop, daemon=True)
     sample_thread.start()
-    print("▶  Sample data running (will stop when ESP32 connects)")
+    print("Demo mode running - waiting for live data source")
 
     print()
-    print(f"🌐  Dashboard  : http://localhost:5000")
-    print(f"📡  ESP32 POST : http://<your-pc-ip>:5000/api/reading")
+    print(f"Dashboard : http://localhost:5000")
+    print(f"API POST  : http://<your-pc-ip>:5000/api/reading")
     print("=" * 50)
     print()
 
