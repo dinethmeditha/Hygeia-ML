@@ -28,6 +28,7 @@ import random
 import threading
 import time
 import json
+import argparse
 from datetime import datetime, timedelta
 from collections import deque
 
@@ -497,6 +498,10 @@ def clear_data():
 # ==============================================================================
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="HYGEIA AI Server")
+    parser.add_argument("--hardware", action="store_true", help="Start without demo data, wait for hardware")
+    args = parser.parse_args()
+
     print()
     print("=" * 55)
     print("  HYGEIA AI – Patient Health Monitoring System")
@@ -511,11 +516,15 @@ if __name__ == "__main__":
     pre_populate_history()
     print()
 
-    # Auto-start the demo generator; it stops when a live device connects
-    sample_running = True
-    sample_thread  = threading.Thread(target=_sample_loop, daemon=True)
-    sample_thread.start()
-    print("Demo mode is active. The generator will stop when a live device connects.")
+    if not args.hardware:
+        # Auto-start the demo generator
+        sample_running = True
+        sample_thread  = threading.Thread(target=_sample_loop, daemon=True)
+        sample_thread.start()
+        print("Demo mode is active. The generator will stop when a live device connects.")
+    else:
+        print("Hardware mode is active. Waiting for live device connection...")
+        
     print()
     print("=" * 55)
     print("  Dashboard : http://localhost:5000")

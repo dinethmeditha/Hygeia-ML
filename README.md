@@ -26,6 +26,7 @@
 13. [Testing & Validation](#13-testing--validation)
 14. [Quick Start Guide](#14-quick-start-guide)
 15. [Future Works](#15-future-works)
+16. [Presentation Guide (Demo Day)](#16-presentation-guide-demo-day)
 
 ---
 
@@ -370,8 +371,7 @@ Hygeia ML/
 ├── start_demo.bat                 ← One-click Windows launcher
 ├── requirements.txt               ← Python package dependencies
 ├── .gitignore                     ← Excludes models/, __pycache__, logs
-├── README.md                      ← Full project documentation
-└── DEMO_GUIDE.md                  ← Presenter's demo guide
+└── README.md                      ← Full project documentation
 ```
 
 ---
@@ -459,11 +459,14 @@ We have provided comprehensive test scripts in the `testing/` directory:
 ### Option A – One-Click Demo (Recommended)
 Simply double-click **`start_demo.bat`**.
 
-This automatically:
-1. Launches the Flask AI server.
-2. Waits 7 seconds for it to initialise.
-3. Opens the dashboard in your default browser.
-4. Starts streaming data or running the interactive demo (depending on choice).
+You will be prompted to select a startup mode:
+1. **Demo Mode**: The server auto-generates realistic vital signs. You can interact with the dashboard to trigger critical health events (no hardware required).
+2. **Hardware Mode**: The server starts up and waits for real-time data from the ESP32 HYGEIA Glove.
+
+The script will automatically:
+1. Launch the Flask AI server in your chosen mode.
+2. Wait 7 seconds for it to initialise.
+3. Open the dashboard in your default browser.
 
 ### Option B – Manual Setup
 
@@ -514,6 +517,33 @@ The following features are planned for upcoming development iterations:
 
 - **Anomaly Detection Pre-Training**  
   Augment the AI pipeline with an unsupervised anomaly detection layer (Autoencoder or Isolation Forest) to flag rare critical patterns that may fall outside the supervised training distribution.
+
+---
+
+## 16. Presentation Guide (Demo Day)
+
+This section outlines the roles and talking points for the team presentation.
+
+### Member 1 – Project Overview & Problem Background
+- **Files to show:** `README.md` (Sections 1 & 3), `data/patient_vitals.csv`.
+- **Talking Points:** Explain the real-world problem (nurses cannot monitor every patient 24/7). Emphasise that this AI detects *trends*, not just single-point thresholds. Walk through the System Architecture diagram and show the raw training data.
+
+### Member 2 – AI Techniques & System Design
+- **Files to show:** `README.md` (Sections 5 & 6), `server.py`, `hygeia_local.py`.
+- **Talking Points:** Discuss the 4 AI concepts used: supervised neural network classification, time-series sliding window, rule-based expert system fallback, and feature engineering. Show the engineered features in the code and explain the stateful sequence buffer `deque(maxlen=5)` in `server.py`.
+
+### Member 3 – Data Pipeline, ML & Implementation
+- **Files to show:** `hygeia_local.py`, `results/`.
+- **Talking Points:** Walk through the ML pipeline from raw CSV data through strict validation, feature engineering, sequence creation, and the Conv1D + BiLSTM model. Show the classification report (overall accuracy and confidence) and the training loss/confusion matrix plots in the `results/` folder.
+
+### Member 4 – Testing, Results, Live Demo & Ethics
+- **Files to show:** `testing/` folder, `data/demo_session_log.csv`, and the Live Dashboard (http://localhost:5000).
+- **Talking Points:** Highlight the automated API tests and dummy data generator. Run the interactive demo:
+    1. Show normal vitals.
+    2. Click **Drop SpO₂** to simulate a critical scenario and watch the AI status change to Warning, then Critical.
+    3. Click **Normal Patient** to show recovery tracking.
+    4. Show that every reading is automatically logged to `demo_session_log.csv`.
+- **Wrap up:** Discuss ethical considerations (data privacy, bias, AI as decision support) and future works.
 
 ---
 
