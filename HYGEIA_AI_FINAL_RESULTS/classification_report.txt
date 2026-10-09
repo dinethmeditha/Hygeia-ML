@@ -1,18 +1,19 @@
-HYGEIA GLOVE - AI MEDICAL SYSTEM
+HYGEIA AI – Patient Health Monitoring System
 ============================================================
 
-CLASSIFICATION REPORT:
+CLASSIFICATION REPORT
+------------------------------------------------------------
 
               precision    recall  f1-score   support
 
-      Normal       1.00      1.00      1.00        38
-     Warning       1.00      1.00      1.00         1
-    Critical       0.00      0.00      0.00         0
+      Normal       0.98      0.96      0.97        53
+     Warning       0.89      0.85      0.87        20
+    Critical       0.83      1.00      0.91        10
 
-   micro avg       1.00      1.00      1.00        39
-   macro avg       0.67      0.67      0.67        39
-weighted avg       1.00      1.00      1.00        39
+    accuracy                           0.94        83
+   macro avg       0.90      0.94      0.92        83
+weighted avg       0.94      0.94      0.94        83
 
-Overall Accuracy: 100.00%
-Mean Confidence: 1.0000
-Confidence Std: 0.0001
+Overall Accuracy : 93.98%
+Mean Confidence  : 0.9413
+Confidence Std   : 0.1162
