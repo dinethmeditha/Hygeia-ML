@@ -12,7 +12,7 @@
 Double-click **[start_demo.bat](start_demo.bat)** to automatically:
 1. Start the AI Flask server
 2. Open the dashboard in the browser at http://localhost:5000
-3. Begin streaming patient data
+3. Begin streaming patient data or run the interactive demo
 
 > If the bat file does not work, run these manually in separate terminals:
 > ```
@@ -30,14 +30,14 @@ Double-click **[start_demo.bat](start_demo.bat)** to automatically:
 
 | File | What to Show |
 |------|-------------|
-| [README.md](README.md) | Full project overview, objectives, architecture diagram |
+| [README.md](README.md) | Section 1: Full project overview, objectives |
+| [README.md](README.md) | Section 3: Architecture diagram |
 | [data/patient_vitals.csv](data/patient_vitals.csv) | The collected patient data used for training |
 
 ### Talking Points & File Walk-through
 
 **1. Open README.md → Section 1 (Project Overview)**
 - Explain the real-world problem: nurses cannot watch every patient 24/7.
-- Show the "who is affected" table.
 - Emphasise that traditional monitors only fire when a threshold is crossed — HYGEIA AI detects *trends*.
 
 **2. Open README.md → Section 3 (System Architecture diagram)**
@@ -66,13 +66,12 @@ Double-click **[start_demo.bat](start_demo.bat)** to automatically:
 | File | What to Show |
 |------|-------------|
 | [README.md](README.md) | Section 5 – ML Methodology, Section 6 – Classification Rules |
-| [server.py](server.py) | `classify()` function (line ~128), `rule_based_classify()` (line ~119) |
-| [hygeia_local.py](hygeia_local.py) | Feature engineering block (line ~60–80) |
-| [PRESENTATION.md](PRESENTATION.md) | Part 2 – AI Techniques section (architecture diagram) |
+| [server.py](server.py) | `classify()` function, `rule_based_classify()` |
+| [hygeia_local.py](hygeia_local.py) | Feature engineering block |
 
 ### Talking Points & File Walk-through
 
-**1. Open PRESENTATION.md → Part 2 (AI Techniques)**
+**1. Discuss AI Techniques**
 - Walk through all 4 AI techniques: Neural Network, Time-Series Sliding Window, Rule-Based Expert System, Feature Engineering.
 - For each one: What is it? Why did we use it? How does it work in HYGEIA?
 
@@ -87,9 +86,6 @@ Double-click **[start_demo.bat](start_demo.bat)** to automatically:
 **4. Open server.py → `classify()` function**
 - Show how it checks if the model is available first, falls back to rule-based if not.
 - Explain the stateful `deque(maxlen=5)` — this is how we maintain the time-series window.
-
-**5. Show the Architecture Diagram (PRESENTATION.md or README.md)**
-- Walk through the system design: Input → Feature Engineering → Scaler → Sequence → Model → Output → Dashboard.
 
 ### Key Message for Member 2
 > "We applied four AI concepts: supervised neural network classification, time-series sliding window learning, a rule-based expert system fallback, and feature engineering — all working together to make the system accurate and reliable."
@@ -106,9 +102,9 @@ Double-click **[start_demo.bat](start_demo.bat)** to automatically:
 |------|-------------|
 | [hygeia_local.py](hygeia_local.py) | Full training script – validation, sequences, model build, training |
 | [README.md](README.md) | Section 5 – ML Methodology |
-| [classification_report.txt](classification_report.txt) | Model accuracy and per-class results |
-| [final_metrics_summary.txt](final_metrics_summary.txt) | 100% accuracy, confidence scores |
-| [HYGEIA_AI_FINAL_RESULTS/](HYGEIA_AI_FINAL_RESULTS/) | Training loss/accuracy plots and confusion matrix |
+| [results/classification_report.txt](results/classification_report.txt) | Model accuracy and per-class results |
+| [results/final_metrics_summary.txt](results/final_metrics_summary.txt) | Overall accuracy, confidence scores |
+| [results/](results/) | Training loss/accuracy plots and confusion matrix |
 
 ### Talking Points & File Walk-through
 
@@ -116,28 +112,23 @@ Double-click **[start_demo.bat](start_demo.bat)** to automatically:
 - Show the range filter: `30 < Temp < 45`, `0 < SpO2 <= 100`, `0 < Pulse < 200`.
 - Explain: "Raw data can have sensor errors. We validate every reading before it ever touches the model."
 
-**2. Open hygeia_local.py → Feature Engineering block**
-- Show where the 3 raw features become 6.
-- Show where `RobustScaler` is fitted and saved as `hygeia_scaler.pkl`.
-
-**3. Open hygeia_local.py → Sequence Creation block**
-- Show the sliding window loop: `X[i : i + SEQ_LEN]`.
+**2. Open hygeia_local.py → Sequence Creation block**
+- Show the sliding window loop.
 - Explain: "Instead of classifying a single snapshot, we feed 5 consecutive readings at once — 25 seconds of history. This is how the model detects trends."
 
-**4. Open hygeia_local.py → Model Build section**
+**3. Open hygeia_local.py → Model Build section**
 - Walk through each layer: Conv1D → Conv1D → BiLSTM → BiLSTM → Dense → Softmax.
 - Explain why Conv1D comes before LSTM (local pattern extraction before temporal learning).
 
-**5. Open classification_report.txt**
-- Show: Normal 100%, Warning 100%, Overall Accuracy 100%, Mean Confidence 1.0000.
-- Mention that Critical class had no test samples (data imbalance — rare events).
+**4. Open results/classification_report.txt**
+- Show the overall accuracy and mean confidence.
 
-**6. Open HYGEIA_AI_FINAL_RESULTS/ folder**
-- Open the training loss curve plot — show the model converging cleanly.
-- Open the confusion matrix — show that no Normal samples were misclassified.
+**5. Open results/ folder**
+- Open the training loss curve plot (`advanced_training_metrics.png`) — show the model converging cleanly.
+- Open the confusion matrix (`comprehensive_evaluation_heatmaps.png`) — show the classification results.
 
 ### Key Message for Member 3
-> "The ML pipeline goes from raw CSV data through strict validation, feature engineering, sequence creation, and a Conv1D + BiLSTM deep learning model — achieving 100% accuracy with 99.97% mean confidence."
+> "The ML pipeline goes from raw CSV data through strict validation, feature engineering, sequence creation, and a Conv1D + BiLSTM deep learning model — achieving high accuracy and confidence."
 
 ---
 
@@ -150,20 +141,15 @@ Double-click **[start_demo.bat](start_demo.bat)** to automatically:
 | File | What to Show |
 |------|-------------|
 | [data/demo_session_log.csv](data/demo_session_log.csv) | Live-logged session data from demo |
-| [data/patient_vitals.csv](data/patient_vitals.csv) | Original training data |
-| [final_metrics_summary.txt](final_metrics_summary.txt) | Test results summary |
-| [PRESENTATION.md](PRESENTATION.md) | Part 4 – Testing tables, ethics table |
+| [testing/](testing/) | Folder showing the test scripts we built |
 | [http://localhost:5000](http://localhost:5000) | Live dashboard – run the demo here |
 
 ### Talking Points & Live Demo Steps
 
-**1. Open PRESENTATION.md → Part 4 (Testing Strategy table)**
-- Explain the 3 testing layers: Model testing, functional end-to-end, scenario testing.
+**1. Show our Testing approach**
+- Open the `testing/` folder and explain we built automated API tests (`test_api_endpoints.py`), a dummy data generator (`generate_dummy_data.py`), and unit tests for the classifier (`test_classification.py`).
 
-**2. Open final_metrics_summary.txt**
-- Read out the key numbers: 100% accuracy, 99.97% confidence.
-
-**3. LIVE DEMO – Dashboard (http://localhost:5000)**
+**2. LIVE DEMO – Dashboard (http://localhost:5000)**
 
 > **Demo Script (step by step):**
 
@@ -196,16 +182,16 @@ STEP 5 – Show the CSV log
    - Explain: "Every reading is automatically logged with a timestamp and mode"
 ```
 
-**4. Open PRESENTATION.md → Part 4 (Ethical Considerations table)**
-- Walk through: data privacy (local only), bias (demographic limitation), human responsibility (AI is decision support, not diagnosis), over-reliance risk.
+**3. Discuss Ethical Considerations**
+- Walk through: data privacy (local only processing), bias (demographic limitation of training data), human responsibility (AI is decision support, not diagnosis), and over-reliance risk.
 
-**5. Wrap up with Future Works**
+**4. Wrap up with Future Works (README Section 15)**
 - Notification alerts for Critical status.
 - Multi-patient management.
 - Cloud deployment.
 
 ### Key Message for Member 4
-> "The system passed all test scenarios. The live demo shows the AI correctly detecting critical patient conditions in real-time, with all data automatically logged. Ethical safeguards are built into the design — this is a tool for clinicians, not a replacement."
+> "The system passed all test scenarios and has automated test coverage. The live demo shows the AI correctly detecting critical patient conditions in real-time, with all data automatically logged. Ethical safeguards are built into the design — this is a tool for clinicians, not a replacement."
 
 ---
 
@@ -222,31 +208,25 @@ STEP 5 – Show the CSV log
 | [data_streamer.py](data_streamer.py) | Streams CSV data to server API |
 | [start_demo.bat](start_demo.bat) | One-click launcher |
 
-### AI Model & Scaler
+### AI Model & Testing
 | File | Role |
 |------|------|
-| [hygeia_ai_model_final.h5](hygeia_ai_model_final.h5) | Trained Keras neural network |
-| [hygeia_scaler.pkl](hygeia_scaler.pkl) | Fitted RobustScaler |
+| [models/](models/) | Contains trained `.h5` model and `.pkl` scaler |
+| [testing/](testing/) | Automated test scripts and data generators |
 
-### Data
+### Data & Results
 | File | Role |
 |------|------|
 | [data/patient_vitals.csv](data/patient_vitals.csv) | Training dataset |
 | [data/demo_session_log.csv](data/demo_session_log.csv) | Auto-logged demo session |
-
-### Results & Reports
-| File | Role |
-|------|------|
-| [classification_report.txt](classification_report.txt) | Per-class precision/recall/F1 |
-| [final_metrics_summary.txt](final_metrics_summary.txt) | Overall accuracy summary |
-| [HYGEIA_AI_FINAL_RESULTS/](HYGEIA_AI_FINAL_RESULTS/) | Training plots & confusion matrix |
+| [results/](results/) | Training plots, confusion matrix, accuracy reports |
 
 ### Documentation
 | File | Role |
 |------|------|
 | [README.md](README.md) | Full project documentation |
-| [PRESENTATION.md](PRESENTATION.md) | Presentation content (4 parts) |
 | [DEMO_GUIDE.md](DEMO_GUIDE.md) | This file – demo & presenter guide |
+| [docs/Essentials_of_AI_Group_Assignment.pdf](docs/Essentials_of_AI_Group_Assignment.pdf) | Assignment criteria |
 
 ---
 

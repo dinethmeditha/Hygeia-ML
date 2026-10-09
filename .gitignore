@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Machine Learning & Data
+models/*.h5
+models/*.pkl
+data/demo_session_log.csv
+testing/dummy_patient_vitals.csv
+testing/dummy_vitals_summary.txt
+
+# Jupyter Notebooks (Optional, so we don't commit large outputs)
+# notebooks/.ipynb_checkpoints/
+# (We will track HYGEIA_code.ipynb, but ignore temporary checkpoints)
+.ipynb_checkpoints/
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

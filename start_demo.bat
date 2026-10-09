@@ -13,7 +13,7 @@ set /p mode="Enter 1 or 2: "
 echo.
 REM --- Clear previous demo session log (keep header only) ---
 echo [0/4] Clearing previous session data...
-echo Timestamp,Temp,SpO2,Pulse,Mode > "data\demo_session_log.csv"
+echo Timestamp,Temp,SpO2,Pulse,SimulationMode > "data\demo_session_log.csv"
 
 echo [1/4] Starting AI Server (Flask)...
 start "HYGEIA Server" cmd /k "set PYTHONIOENCODING=utf-8 && python server.py"

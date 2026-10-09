@@ -4,6 +4,8 @@
 > Continuously analyses **Body Temperature**, **Blood Oxygen Saturation (SpO₂)**, and **Pulse Rate**
 > using a time-series deep learning model, classifies risk level, and streams live trends to a
 > clinical web dashboard.
+> 
+> *Developed as part of the KDU Semester 4 project.*
 
 ---
 
@@ -29,7 +31,7 @@
 
 ## 1. Project Overview
 
-**HYGEIA AI** is a clinical-grade health monitoring system developed as part of the KDU Semester 4 project. The system ingests patient vital sign readings continuously, applies a trained deep learning model for risk-level prediction, and presents a real-time dashboard for caretakers and medical staff.
+**HYGEIA AI** is a clinical-grade health monitoring system. The system ingests patient vital sign readings continuously, applies a trained deep learning model for risk-level prediction, and presents a real-time dashboard for caretakers and medical staff.
 
 Unlike traditional single-point threshold monitors, HYGEIA AI uses a **sliding time-window** approach — analysing the *trend* over the last 25 seconds of readings, not just the current value. This allows the AI to detect gradual deterioration (e.g., slowly dropping SpO₂) well before thresholds are crossed.
 
@@ -63,9 +65,9 @@ Unlike traditional single-point threshold monitors, HYGEIA AI uses a **sliding t
 │  DATA SOURCE LAYER                                              │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  data_streamer.py (patient_vitals.csv row-by-row)        │  │
-│  │    OR                                                     │  │
+│  │    OR                                                    │  │
 │  │  Internal Demo Generator (_sample_loop in server.py)     │  │
-│  │    OR                                                     │  │
+│  │    OR                                                    │  │
 │  │  Live External Device → POST /api/reading                │  │
 │  └──────────────────────────┬───────────────────────────────┘  │
 └─────────────────────────────┼───────────────────────────────────┘
@@ -74,29 +76,29 @@ Unlike traditional single-point threshold monitors, HYGEIA AI uses a **sliding t
 ┌─────────────────────────────────────────────────────────────────┐
 │  FLASK SERVER (server.py)                                       │
 │                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  RobustScaler  →  Feature Engineering  →  Sequence      │   │
-│  │  (hygeia_scaler.pkl)                    (5 readings)    │   │
-│  └────────────────────────┬────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  RobustScaler  →  Feature Engineering  →  Sequence      │    │
+│  │  (models/hygeia_scaler.pkl)             (5 readings)    │    │
+│  └────────────────────────┬────────────────────────────────┘    │
 │                           │                                     │
-│  ┌────────────────────────▼────────────────────────────────┐   │
-│  │  AI Model (hygeia_ai_model_final.h5)                    │   │
-│  │  Conv1D + BiLSTM → 3-class Softmax                      │   │
-│  │  Output: Normal | Warning | Critical  + Confidence %    │   │
-│  └────────────────────────┬────────────────────────────────┘   │
+│  ┌────────────────────────▼────────────────────────────────┐    │
+│  │  AI Model (models/hygeia_ai_model_final.h5)             │    │
+│  │  Conv1D + BiLSTM → 3-class Softmax                      │    │
+│  │  Output: Normal | Warning | Critical  + Confidence %    │    │
+│  └────────────────────────┬────────────────────────────────┘    │
 │                           │                                     │
-│  ┌────────────────────────▼────────────────────────────────┐   │
-│  │  30-min Rolling Buffer (deque, maxlen=360)               │   │
-│  └────────────────────────┬────────────────────────────────┘   │
+│  ┌────────────────────────▼────────────────────────────────┐    │
+│  │  30-min Rolling Buffer (deque, maxlen=360)              │    │
+│  └────────────────────────┬────────────────────────────────┘    │
 └───────────────────────────┼─────────────────────────────────────┘
                             │ http://localhost:5000
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  WEB DASHBOARD (templates/index.html)                          │
-│  - Live vital value cards (large, high-contrast)               │
-│  - AI Risk Status badge + confidence bar                       │
-│  - 30-min trend chart (Chart.js)                               │
-│  - Simulation Controller (Normal / Critical modes)             │
+│  WEB DASHBOARD (templates/index.html)                           │
+│  - Live vital value cards (large, high-contrast)                │
+│  - AI Risk Status badge + confidence bar                        │
+│  - 30-min trend chart (Chart.js)                                │
+│  - Simulation Controller (Normal / Critical modes)              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -157,7 +159,7 @@ Three base features are expanded to **six engineered features** to amplify anoma
 
 All six features are scaled using **RobustScaler** (scikit-learn):
 - Robust to outliers (uses median and IQR instead of mean/std).
-- Fitted **once** on training data and persisted as `hygeia_scaler.pkl`.
+- Fitted **once** on training data and persisted as `models/hygeia_scaler.pkl`.
 - Applied identically at inference time.
 
 ---
@@ -165,7 +167,7 @@ All six features are scaled using **RobustScaler** (scikit-learn):
 ## 5. Machine Learning Pipeline
 
 ```
-patient_vitals.csv
+data/patient_vitals.csv
        │
        ▼
   Data Validation (range filter, NaN removal)
@@ -192,8 +194,8 @@ patient_vitals.csv
   ReduceLROnPlateau     Classification Report
        │
        ▼
-  hygeia_ai_model_final.h5
-  hygeia_scaler.pkl
+  models/hygeia_ai_model_final.h5
+  models/hygeia_scaler.pkl
 ```
 
 ### 5.1 Sequence (Sliding Window) Creation
@@ -243,23 +245,6 @@ Output: [P(Normal), P(Warning), P(Critical)]
 - **BatchNorm** stabilises training and allows higher learning rates.
 - **Softmax output** gives calibrated probability across all three classes.
 
-### Training Callbacks
-
-| Callback | Configuration | Purpose |
-|---|---|---|
-| EarlyStopping | patience=20, restore_best_weights | Stops before overfitting |
-| ReduceLROnPlateau | factor=0.5, patience=10 | Reduces LR on val plateau |
-| ModelCheckpoint | saves best val_accuracy | Keeps the best checkpoint |
-
-### Performance
-
-| Metric | Value |
-|---|---|
-| Overall Accuracy | 100% (on test split) |
-| Mean Confidence | ~99.97% |
-| Architecture | Conv1D × 2 + BiLSTM × 2 |
-| Sequence Length | 5 readings (25 seconds) |
-
 ---
 
 ## 7. Risk Classification Rules
@@ -274,19 +259,19 @@ Used as the **rule-based fallback** (when the AI model is unavailable) and for i
                                          │
                    ┌─────────────────────▼────────────────────────┐
                    │  CRITICAL CHECK                              │
-                   │  spo2 < 90  OR  temp > 40°C  OR temp < 35°C │
-                   │  OR  pulse > 150  OR  pulse < 40            │
+                   │  spo2 < 90  OR  temp > 40°C  OR temp < 35°C  │
+                   │  OR  pulse > 150  OR  pulse < 40             │
                    └──────────────────┬──────────────────────────-┘
                          YES ◄────────┘         │ NO
                           │                     ▼
                    [CRITICAL 🔴]       ┌──────────────────────┐
-                   confidence=0.95     │  WARNING CHECK        │
-                                       │  spo2 < 95  OR        │
-                                       │  temp > 38.5 OR <36°C │
-                                       │  OR pulse > 120/<55   │
-                                       └────────────┬──────────┘
+                   confidence=0.95     │  WARNING CHECK       │
+                                       │  spo2 < 95  OR       │
+                                       │  temp > 38.5 OR <36°C│
+                                       │  OR pulse > 120/<55  │
+                                       └────────────┬─────────┘
                                           YES ◄─────┘    │ NO
-                                           │              ▼
+                                           │             ▼
                                    [WARNING 🟡]     [NORMAL 🟢]
                                    conf=0.85        conf=0.92
 ```
@@ -297,23 +282,13 @@ Used as the **rule-based fallback** (when the AI model is unavailable) and for i
 
 | Component | Technology |
 |---|---|
-| Backend Server | Python 3.8 + Flask |
+| Backend Server | Python 3.8+ + Flask |
 | AI Framework | TensorFlow 2.13 / Keras |
 | Scaler | scikit-learn RobustScaler |
 | Data Handling | pandas, numpy |
 | CORS | flask-cors |
 | Model Persistence | h5py (Keras), joblib (scaler) |
 | Frontend | Vanilla HTML/CSS/JS, Chart.js |
-
-### Key Design Decisions
-
-**Stateful Sequence Buffer**: The server maintains a `deque(maxlen=5)` of scaled feature vectors (`recent_features`). Every incoming reading appends to this deque and the full sequence `(1, 5, 6)` is immediately fed to the model.
-
-**Thread Safety**: All writes to `readings_buffer` and `recent_features` are guarded by `threading.Lock()`.
-
-**Auto-Demo Mode**: The server auto-starts the internal demo generator on launch. Once a live external reading arrives, demo mode stops automatically.
-
-**30-Minute Pre-population**: On startup, `pre_populate_history()` fills the chart buffer with 360 synthetically generated historical readings so the dashboard is immediately useful.
 
 ---
 
@@ -332,17 +307,6 @@ The dashboard is a single-page application (`templates/index.html`) served by Fl
 | Simulation Controller | Four buttons to switch patient condition scenario in real time |
 | Footer | Classifier type indicator (AI vs Rule-based) |
 
-### Simulation Modes (visible in Demo Mode)
-
-| Button | Scenario | Target Values |
-|---|---|---|
-| Normal Patient | Healthy baseline | Temp ~36.8°C, SpO₂ ~98%, Pulse ~75 BPM |
-| Drop SpO₂ | Hypoxaemia simulation | SpO₂ drops to ~85% |
-| Spike Temp | High fever simulation | Temp rises to ~41.5°C |
-| High Pulse | Tachycardia simulation | Pulse spikes to ~165 BPM |
-
-Each press of a mode button sends `POST /api/simulation/mode` to the server, which immediately steers the Gaussian random walk toward the critical target values.
-
 ---
 
 ## 10. API Reference
@@ -356,24 +320,8 @@ Each press of a mode button sends `POST /api/simulation/mode` to the server, whi
 | `GET` | `/api/status` | — | JSON object | Server + model + simulation status |
 | `POST` | `/api/sample/start` | — | `{status}` | Start demo data generator |
 | `POST` | `/api/sample/stop` | — | `{status}` | Stop demo data generator |
-| `POST` | `/api/simulation/mode` | `{"mode": "normal|critical_spo2|critical_temp|critical_pulse"}` | `{status, mode}` | Change simulation scenario |
+| `POST` | `/api/simulation/mode` | `{"mode": "normal\|critical_spo2\|critical_temp\|critical_pulse"}` | `{status, mode}` | Change simulation scenario |
 | `POST` | `/api/clear` | — | `{status}` | Clear all buffers |
-
-### Example: Posting a Reading
-```bash
-curl -X POST http://localhost:5000/api/reading \
-  -H "Content-Type: application/json" \
-  -d '{"temp": 38.2, "spo2": 93, "pulse": 118}'
-```
-
-Response:
-```json
-{
-  "status": "ok",
-  "classification": "Warning",
-  "confidence": 0.8912
-}
-```
 
 ---
 
@@ -382,27 +330,48 @@ Response:
 ```
 Hygeia ML/
 │
-├── data/
-│   ├── patient_vitals.csv         ← Collected patient vital readings (training data)
-│   └── demo_session_log.csv       ← Auto-logged demo/simulation session output
+├── data/                          ← Training & session data
+│   ├── patient_vitals.csv         ← Real collected patient data (training input)
+│   └── demo_session_log.csv       ← Auto-generated during demo (gitignored)
 │
-├── templates/
-│   └── index.html                 ← Web dashboard (Flask-served SPA)
+├── models/                        ← Trained AI artifacts (generated by training)
+│   ├── hygeia_ai_model_final.h5   ← Trained Keras model
+│   └── hygeia_scaler.pkl          ← Fitted RobustScaler
 │
-├── HYGEIA_AI_FINAL_RESULTS/       ← Training plots (loss curves, confusion matrix)
-├── photos of plots/               ← Visual reference plots
+├── results/                       ← Training evaluation outputs
+│   ├── classification_report.txt  ← Per-class precision/recall/F1
+│   ├── final_metrics_summary.txt  ← Overall accuracy summary
+│   ├── advanced_training_metrics.png
+│   ├── comprehensive_evaluation_heatmaps.png
+│   ├── comprehensive_accuracy_analysis.png
+│   ├── time_series_panel.png
+│   └── 3d_vital_signs.png
 │
-├── hygeia_local.py                ← Model training script (run once to produce .h5)
-├── server.py                      ← Flask web server (main runtime)
-├── data_streamer.py               ← Streams patient_vitals.csv to server API
-├── start_demo.bat                 ← One-click Windows launcher (server + streamer + browser)
-├── sensor_firmware.ino            ← Reference ESP32 firmware (hardware integration)
+├── templates/                     ← Flask HTML templates
+│   └── index.html                 ← Web dashboard (SPA)
 │
-├── hygeia_ai_model_final.h5       ← Trained Keras model (output of hygeia_local.py)
-├── hygeia_scaler.pkl              ← Fitted RobustScaler (output of hygeia_local.py)
+├── testing/                       ← Testing utilities
+│   ├── generate_dummy_data.py     ← Generates synthetic patient vitals CSV
+│   ├── test_api_endpoints.py      ← Tests all Flask API endpoints
+│   └── test_classification.py     ← Unit tests for rule-based classifier
+│
+├── notebooks/                     ← Jupyter notebooks
+│   └── HYGEIA_code.ipynb          ← EDA + training notebook
+│
+├── docs/                          ← Project documentation & academic files
+│   └── Essentials_of_AI_Group_Assignment.pdf
+│
+├── hardware/                      ← Embedded firmware
+│   └── sensor_firmware.ino        ← ESP32 + MAX30102 + MLX90614 firmware
+│
+├── hygeia_local.py                ← Model training script
+├── server.py                      ← Flask AI server (main runtime)
+├── data_streamer.py               ← Streams patient_vitals.csv to server
+├── start_demo.bat                 ← One-click Windows launcher
 ├── requirements.txt               ← Python package dependencies
-├── classification_report.txt      ← Per-class precision/recall report
-└── final_metrics_summary.txt      ← Summary accuracy metrics
+├── .gitignore                     ← Excludes models/, __pycache__, logs
+├── README.md                      ← Full project documentation
+└── DEMO_GUIDE.md                  ← Presenter's demo guide
 ```
 
 ---
@@ -411,45 +380,45 @@ Hygeia ML/
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  PHASE 1 – DATA COLLECTION                                             │
-│  Patient vitals recorded and saved to data/patient_vitals.csv          │
+│  PHASE 1 – DATA COLLECTION                                              │
+│  Patient vitals recorded and saved to data/patient_vitals.csv           │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  PHASE 2 – DATA VALIDATION & PREPROCESSING (hygeia_local.py)           │
+│  PHASE 2 – DATA VALIDATION & PREPROCESSING (hygeia_local.py)            │
 │  1. Load CSV                                                            │
 │  2. Range validation (hard physiological bounds)                        │
 │  3. NaN removal                                                         │
-│  4. Feature engineering (3 → 6 features)                               │
+│  4. Feature engineering (3 → 6 features)                                │
 │  5. RobustScaler fit and transform                                      │
-│  6. Sliding window sequence creation (SEQ_LEN=5)                       │
+│  6. Sliding window sequence creation (SEQ_LEN=5)                        │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  PHASE 3 – MODEL TRAINING (hygeia_local.py)                            │
-│  Conv1D × 2 + BiLSTM × 2 + Dense → 3-class Softmax                    │
-│  Callbacks: EarlyStopping, ReduceLROnPlateau, ModelCheckpoint          │
-│  Outputs: hygeia_ai_model_final.h5 + hygeia_scaler.pkl                 │
+│  PHASE 3 – MODEL TRAINING (hygeia_local.py)                             │
+│  Conv1D × 2 + BiLSTM × 2 + Dense → 3-class Softmax                      │
+│  Callbacks: EarlyStopping, ReduceLROnPlateau, ModelCheckpoint           │
+│  Outputs: models/hygeia_ai_model_final.h5 + models/hygeia_scaler.pkl    │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  PHASE 4 – SERVER RUNTIME (server.py)                                  │
+│  PHASE 4 – SERVER RUNTIME (server.py)                                   │
 │  1. Load .h5 model + .pkl scaler                                        │
 │  2. Pre-populate 30-min history buffer                                  │
-│  3. Start demo generator (or receive live readings via /api/reading)   │
-│  4. Each reading → scale → append to deque → model.predict()          │
-│  5. Return: status (Normal/Warning/Critical) + confidence              │
+│  3. Start demo generator (or receive live readings via /api/reading)    │
+│  4. Each reading → scale → append to deque → model.predict()            │
+│  5. Return: status (Normal/Warning/Critical) + confidence               │
 └────────────────────────────────┬────────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  PHASE 5 – DASHBOARD (http://localhost:5000)                           │
-│  JS polls /api/data every 3 seconds                                    │
-│  Renders: vital cards + AI risk badge + 30-min chart                   │
-│  User can switch patient scenarios via Simulation Controller           │
+│  PHASE 5 – DASHBOARD (http://localhost:5000)                            │
+│  JS polls /api/data every 3 seconds                                     │
+│  Renders: vital cards + AI risk badge + 30-min chart                    │
+│  User can switch patient scenarios via Simulation Controller            │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -459,8 +428,8 @@ Hygeia ML/
 
 ### 13.1 Model Testing
 After training, the model is evaluated on a held-out 20% test set:
-- **Classification Report**: Per-class precision, recall, F1-score (saved to `classification_report.txt`).
-- **Confusion Matrix**: Visualised and saved to `HYGEIA_AI_FINAL_RESULTS/`.
+- **Classification Report**: Per-class precision, recall, F1-score (saved to `results/classification_report.txt`).
+- **Confusion Matrix**: Visualised and saved to `results/`.
 - **Mean Confidence**: Average softmax probability of the predicted class.
 
 ### 13.2 Simulation-Based Testing (Functional)
@@ -472,16 +441,11 @@ The `start_demo.bat` launcher enables end-to-end functional testing without hard
    - AI risk status changes as expected.
    - Trend chart scrolls forward in real time.
 
-### 13.3 Simulation Mode Testing (Critical Scenarios)
-Using the **Simulation Controller** in the dashboard:
-- **Drop SpO₂**: Verify status transitions from Normal → Warning → Critical as SpO₂ approaches 85%.
-- **Spike Temp**: Verify Critical trigger when Temp exceeds 40°C.
-- **High Pulse**: Verify Critical trigger when Pulse exceeds 150 BPM.
-- **Return to Normal**: Verify smooth recovery back to Normal status.
-
-### 13.4 Fallback Rule Engine Testing
-- Temporarily rename `hygeia_ai_model_final.h5` to test rule-based classification.
-- Verify dashboard still correctly classifies critical synthetic inputs.
+### 13.3 Test Suite
+We have provided comprehensive test scripts in the `testing/` directory:
+- `generate_dummy_data.py`: Generates synthetic vital signs across all health classes.
+- `test_api_endpoints.py`: Tests API responses, status codes, and JSON structure.
+- `test_classification.py`: Validates the rule-based fallback logic at boundary cases.
 
 ---
 
@@ -497,9 +461,9 @@ Simply double-click **`start_demo.bat`**.
 
 This automatically:
 1. Launches the Flask AI server.
-2. Waits 6 seconds for it to initialise.
+2. Waits 7 seconds for it to initialise.
 3. Opens the dashboard in your default browser.
-4. Starts streaming data from `patient_vitals.csv`.
+4. Starts streaming data or running the interactive demo (depending on choice).
 
 ### Option B – Manual Setup
 
@@ -508,7 +472,7 @@ This automatically:
 pip install -r requirements.txt
 ```
 
-**Step 2 – Train the AI model** *(skip if `hygeia_ai_model_final.h5` already exists)*
+**Step 2 – Train the AI model** *(skip if `models/hygeia_ai_model_final.h5` already exists)*
 ```bash
 python hygeia_local.py
 ```
