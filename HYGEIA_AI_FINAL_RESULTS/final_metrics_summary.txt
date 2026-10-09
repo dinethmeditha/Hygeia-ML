@@ -1,10 +1,10 @@
 HYGEIA GLOVE - FINAL RESULTS
 ============================================================
 
-Overall Accuracy: 100.00%
+Overall Accuracy: 97.97%
 Total Test Samples: 39
-Correct Predictions: 39
-Incorrect Predictions: 0
+Correct Predictions: 38
+Incorrect Predictions: 1
 
-Mean Confidence: 1.0000
-Confidence Std: 0.0001
+Mean Confidence: 0.9351
+Confidence Std: 0.1056

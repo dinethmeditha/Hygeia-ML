@@ -13,6 +13,6 @@ CLASSIFICATION REPORT:
    macro avg       0.67      0.67      0.67        39
 weighted avg       1.00      1.00      1.00        39
 
-Overall Accuracy: 100.00%
-Mean Confidence: 1.0000
-Confidence Std: 0.0001
+Overall Accuracy: 97.97%
+Mean Confidence: 0.9351
+Confidence Std: 0.1056

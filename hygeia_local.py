@@ -152,7 +152,7 @@ cbs = [
     ModelCheckpoint(MODEL_OUT, monitor='val_accuracy', save_best_only=True, verbose=1),
 ]
 
-print("\n🚀 Training …")
+print("\n Training …")
 history = model.fit(
     X_train, y_train,
     epochs=150, batch_size=16,

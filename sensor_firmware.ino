@@ -44,8 +44,8 @@
 // ═══════════════════════════════════════════════════════════════
 //  CONFIGURATION  ← Edit these values before uploading
 // ═══════════════════════════════════════════════════════════════
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID     = "Hygeia glove";
+const char* WIFI_PASSWORD = "12345678";
 
 // Your PC's local IP address (run `ipconfig` on Windows → IPv4 Address)
 const char* SERVER_HOST   = "192.168.1.100";

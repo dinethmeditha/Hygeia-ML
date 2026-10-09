@@ -164,9 +164,6 @@ def make_reading(temp, spo2, pulse, source="demo"):
         "source":     source,
     }
 
-# ==============================================================================
-#  DEMO DATA GENERATOR (simulation loop)
-# ==============================================================================
 
 def _sample_loop():
     global sample_running, simulation_mode
