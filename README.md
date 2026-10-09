@@ -339,7 +339,7 @@ Hygeia ML/
 │   ├── hygeia_ai_model_final.h5   ← Trained Keras model
 │   └── hygeia_scaler.pkl          ← Fitted RobustScaler
 │
-├── results/                       ← Training evaluation outputs
+├── HYGEIA_AI_FINAL_RESULTS/       ← Training evaluation outputs
 │   ├── classification_report.txt  ← Per-class precision/recall/F1
 │   ├── final_metrics_summary.txt  ← Overall accuracy summary
 │   ├── advanced_training_metrics.png
@@ -428,8 +428,8 @@ Hygeia ML/
 
 ### 13.1 Model Testing
 After training, the model is evaluated on a held-out 20% test set:
-- **Classification Report**: Per-class precision, recall, F1-score (saved to `results/classification_report.txt`).
-- **Confusion Matrix**: Visualised and saved to `results/`.
+- **Classification Report**: Per-class precision, recall, F1-score (saved to `HYGEIA_AI_FINAL_RESULTS/classification_report.txt`).
+- **Confusion Matrix**: Visualised and saved to `HYGEIA_AI_FINAL_RESULTS/`.
 - **Mean Confidence**: Average softmax probability of the predicted class.
 
 ### 13.2 Simulation-Based Testing (Functional)
@@ -533,8 +533,8 @@ This section outlines the roles and talking points for the team presentation.
 - **Talking Points:** Discuss the 4 AI concepts used: supervised neural network classification, time-series sliding window, rule-based expert system fallback, and feature engineering. Show the engineered features in the code and explain the stateful sequence buffer `deque(maxlen=5)` in `server.py`.
 
 ### Member 3 – Data Pipeline, ML & Implementation
-- **Files to show:** `hygeia_local.py`, `results/`.
-- **Talking Points:** Walk through the ML pipeline from raw CSV data through strict validation, feature engineering, sequence creation, and the Conv1D + BiLSTM model. Show the classification report (overall accuracy and confidence) and the training loss/confusion matrix plots in the `results/` folder.
+- **Files to show:** `hygeia_local.py`, `HYGEIA_AI_FINAL_RESULTS/`.
+- **Talking Points:** Walk through the ML pipeline from raw CSV data through strict validation, feature engineering, sequence creation, and the Conv1D + BiLSTM model. Show the classification report (overall accuracy and confidence) and the training loss/confusion matrix plots in the `HYGEIA_AI_FINAL_RESULTS/` folder.
 
 ### Member 4 – Testing, Results, Live Demo & Ethics
 - **Files to show:** `testing/` folder, `data/demo_session_log.csv`, and the Live Dashboard (http://localhost:5000).

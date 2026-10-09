@@ -1,0 +1,10 @@
+HYGEIA AI – Final Training Results
+============================================================
+
+Overall Accuracy     : 93.98%
+Total Test Samples   : 83
+Correct Predictions  : 78
+Incorrect Predictions: 5
+
+Mean Confidence  : 0.9413
+Confidence Std   : 0.1162

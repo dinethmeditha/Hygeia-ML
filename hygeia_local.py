@@ -52,7 +52,7 @@ BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH   = os.path.join(BASE_DIR, "data",    "patient_vitals.csv")
 MODEL_OUT   = os.path.join(BASE_DIR, "models",  "hygeia_ai_model_final.h5")
 SCALER_OUT  = os.path.join(BASE_DIR, "models",  "hygeia_scaler.pkl")
-RESULTS_DIR = os.path.join(BASE_DIR, "results")
+RESULTS_DIR = os.path.join(BASE_DIR, "HYGEIA_AI_FINAL_RESULTS")
 
 # Sequence length – how many consecutive readings the model sees at once
 SEQ_LEN = 5
@@ -340,7 +340,7 @@ def save_training_plots(history):
 
 def save_confusion_matrix(y_test, y_pred):
     """Save the confusion matrix heatmap."""
-    cm = confusion_matrix(y_test, y_pred)
+    cm = confusion_matrix(y_test, y_pred, labels=[0, 1, 2])
     fig, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(
         cm, annot=True, fmt="d", cmap="Blues",
@@ -356,6 +356,92 @@ def save_confusion_matrix(y_test, y_pred):
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved confusion matrix -> {out}")
+
+
+def save_comprehensive_accuracy(y_test, y_pred, confidence):
+    """Save a comprehensive accuracy and confidence analysis plot."""
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    fig.suptitle("HYGEIA AI – Comprehensive Accuracy Analysis", fontsize=14, fontweight="bold")
+
+    # Bar chart of accuracy per class
+    cm = confusion_matrix(y_test, y_pred, labels=[0, 1, 2])
+    
+    # Avoid division by zero if a class has no true samples
+    with np.errstate(divide='ignore', invalid='ignore'):
+        class_acc = np.nan_to_num(cm.diagonal() / cm.sum(axis=1), nan=0.0)
+    
+    sns.barplot(x=list(STATUS_NAMES.values()), y=class_acc, ax=axes[0], palette="viridis")
+    axes[0].set_title("Accuracy per Class")
+    axes[0].set_ylim(0, 1.1)
+    for i, v in enumerate(class_acc):
+        axes[0].text(i, v + 0.02, f"{v*100:.1f}%", ha='center', fontweight='bold')
+
+    # Histogram of confidence scores
+    sns.histplot(confidence, bins=20, ax=axes[1], color="#00C9FF", kde=True)
+    axes[1].set_title("Distribution of Prediction Confidence")
+    axes[1].set_xlabel("Confidence Score")
+
+    plt.tight_layout()
+    out = os.path.join(RESULTS_DIR, "comprehensive_accuracy_analysis.png")
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved accuracy analysis -> {out}")
+
+
+def save_time_series_panel(df):
+    """Save a time series panel of the raw data."""
+    # Plot a small subset (e.g. first 200 readings) to make it readable
+    subset = df.head(200)
+    fig, axes = plt.subplots(3, 1, figsize=(16, 12), sharex=True)
+    fig.suptitle("HYGEIA AI – Patient Vitals Time Series (Sample)", fontsize=16, fontweight="bold")
+
+    axes[0].plot(subset["Temp"], color="#FF6B6B", linewidth=2)
+    axes[0].set_ylabel("Temperature (°C)")
+    axes[0].grid(True, alpha=0.3)
+
+    axes[1].plot(subset["SpO2"], color="#00C9FF", linewidth=2)
+    axes[1].set_ylabel("SpO2 (%)")
+    axes[1].grid(True, alpha=0.3)
+
+    axes[2].plot(subset["Pulse"], color="#FFB86C", linewidth=2)
+    axes[2].set_ylabel("Pulse (BPM)")
+    axes[2].set_xlabel("Time (Reading Index)")
+    axes[2].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    out = os.path.join(RESULTS_DIR, "time_series_panel.png")
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved time series panel -> {out}")
+
+
+def save_3d_vital_signs(df):
+    """Save a 3D scatter plot of the vitals colored by status."""
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    fig.suptitle("HYGEIA AI – 3D Vital Signs Clustering", fontsize=14, fontweight="bold")
+
+    # Map status int to color
+    colors = {0: "green", 1: "orange", 2: "red"}
+    c = df["Status"].map(colors)
+
+    scatter = ax.scatter(df["Temp"], df["SpO2"], df["Pulse"], c=c, alpha=0.6, s=20)
+
+    ax.set_xlabel("Temperature (°C)")
+    ax.set_ylabel("SpO2 (%)")
+    ax.set_zlabel("Pulse (BPM)")
+
+    # Custom legend
+    import matplotlib.lines as mlines
+    l1 = mlines.Line2D([], [], color="green", marker="o", linestyle="None", label="Normal")
+    l2 = mlines.Line2D([], [], color="orange", marker="o", linestyle="None", label="Warning")
+    l3 = mlines.Line2D([], [], color="red", marker="o", linestyle="None", label="Critical")
+    ax.legend(handles=[l1, l2, l3], loc="upper left")
+
+    out = os.path.join(RESULTS_DIR, "3d_vital_signs.png")
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved 3D plot -> {out}")
 
 
 # ==============================================================================
@@ -429,8 +515,13 @@ def main():
     # --- Evaluate ---
     print("\n[7/7] Evaluating and saving results...")
     y_pred, accuracy, confidence = evaluate_and_save(model, X_test, y_test)
+    
+    print("      Generating plots...")
     save_training_plots(history)
     save_confusion_matrix(y_test, y_pred)
+    save_comprehensive_accuracy(y_test, y_pred, confidence)
+    save_time_series_panel(df)
+    save_3d_vital_signs(df)
 
     print()
     print("=" * 60)
