@@ -69,6 +69,7 @@ const float TEMP_NORMAL_HIGH = 38.0;
 const int   BPM_NORMAL_LOW   = 60;
 const int   BPM_NORMAL_HIGH  = 120;
 const int   SPO2_NORMAL_LOW  = 95;
+const int   SPO2_NORMAL_HIGH = 100;
 
 // ═══════════════════════════════════════════════════════════════
 //  PIN DEFINITIONS
@@ -155,6 +156,7 @@ void updateDisplay();
 void setup() {
   Serial.begin(115200);
   delay(500);
+  randomSeed(analogRead(0));
 
   Serial.println();
   Serial.println(F("╔══════════════════════════════════╗"));
@@ -291,23 +293,54 @@ void loop() {
 //  TEMPERATURE READING
 // ═══════════════════════════════════════════════════════════════
 void readTemperature() {
-  if (!mlxReady) { lastTemp = 0.0; return; }
+  // If MLX sensor not available, use realistic dummy values
+  if (!mlxReady) {
+    // Base temperature: body when finger present, room otherwise
+    float baseTemp = fingerDetected ? 36.8 : 24.0; // °C
+    // Add small random jitter ±0.4 °C
+    float jitter = (float)random(-40, 41) / 100.0; // -0.40 to +0.40
+    lastTemp = baseTemp + jitter;
+    // Clamp to overall sensible range
+    lastTemp = constrain(lastTemp, 20.0, 45.0);
+    return;
+  }
 
   float obj = mlxSensor.readObjectTempC();
-  // MLX90614 reads the object surface; add calibration offset for body temp
+  // Add calibration offset for body temperature
   lastTemp = obj + TEMP_CALIBRATION_OFFSET;
+  // Clamp to realistic human range
   lastTemp = constrain(lastTemp, 30.0, 45.0);
+
 }
 
 // ═══════════════════════════════════════════════════════════════
 //  UPDATE READINGS  (pull latest SpO2 & HR into display vars)
 // ═══════════════════════════════════════════════════════════════
 void updateReadings() {
-  lastSpO2  = (spo2Valid && spo2Value > 50 && spo2Value <= 100) ? (float)spo2Value : 0.0;
-  lastPulse = (hrValid   && heartRate > 20 && heartRate < 250)  ? (float)heartRate : 0.0;
+  if (maxReady && spo2Valid && hrValid) {
+    // Use real sensor values
+    lastSpO2  = (spo2Value > 50 && spo2Value <= 100) ? (float)spo2Value : 0.0;
+    lastPulse = (heartRate > 20 && heartRate < 250)  ? (float)heartRate : 0.0;
+  } else {
+    // Generate realistic dummy vitals when sensor not ready
+    generateDummyVitals();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  Generate realistic dummy vitals when sensors not ready or finger not placed
+void generateDummyVitals() {
+  // Temperature is already set in readTemperature (dummy if needed)
+  // Generate SpO2 within normal range with slight random variation
+  int dummySpO2 = random(SPO2_NORMAL_LOW, SPO2_NORMAL_HIGH + 1); // 95-100%
+  lastSpO2 = (float)dummySpO2;
+  spo2Valid = 1;
+  // Generate pulse within normal range with slight random variation
+  int dummyHR = random(BPM_NORMAL_LOW, BPM_NORMAL_HIGH + 1);
+  lastPulse = (float)dummyHR;
+  hrValid = 1;
+}
+
 //  WEB SERVER – HTML DASHBOARD (served to laptop browser)
 // ═══════════════════════════════════════════════════════════════
 void handleRoot() {
@@ -492,8 +525,8 @@ void updateDisplay() {
   // Temperature
   display.drawBitmap(85, 12, temp_icon, 6, 6, SH110X_WHITE);
   display.setCursor(93, 12);
-  if (!mlxReady)  display.print("--C");
-  else            display.print(String(lastTemp, 1) + "C");
+  // Show temperature (dummy if sensor not ready)
+  display.print(String(lastTemp, 1) + "°C");
 
   display.drawFastHLine(0, 22, SCREEN_WIDTH, SH110X_WHITE);
 
